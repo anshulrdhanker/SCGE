@@ -5,44 +5,41 @@ import yfinance as yf
 from datetime import datetime
 from dotenv import load_dotenv
 
-# Load environment variables
+
 load_dotenv()
 
-# Configuration
+
 API_KEY = os.getenv("API_KEY")
 symbol = "NVDA"
 
-# API Endpoint
-url = f"https://api.marketdata.app/v1/options/chain/{symbol}/"
+
+url = f"https://api.marketdata.app/v1/options/chain/{symbol}/"  # Market Data endpoint to pull options chain
 headers = {"Authorization": f"Token {API_KEY}"}
 
 try:
-    # Make the API request
-    print(f"Fetching options chain for {symbol}...")
+
+    print(f"Getting options chain for {symbol}...")
     response = requests.get(url, headers=headers, timeout=15)
     response.raise_for_status()
     
-    # Parse the response
-    chain_data = response.json()
+    # Parse response and fetch DF
     
-    # Convert to DataFrame
+    chain_data = response.json() 
     df = pd.DataFrame(chain_data)
     
-    # ===== DATA CLEANING & FILTERING =====
-    # Convert expiration from timestamp to datetime
-    df['expiration'] = pd.to_datetime(df['expiration'], unit='s')
+    # Data Cleaning
     
-    # Ensure IV is numeric
+    df['expiration'] = pd.to_datetime(df['expiration'], unit='s')  # Convert expiration from timestamp to datetime
     df['iv'] = pd.to_numeric(df['iv'], errors='coerce')
     
-    # Remove rows with bad IV or prices
-    df = df[(df['iv'] > 0) & (df['bid'] > 0) & (df['ask'] > 0)]
     
-    # Get current spot price safely
+    df = df[(df['iv'] > 0) & (df['bid'] > 0) & (df['ask'] > 0)] # Remove rows with no/bad IV or prices to clean options chain
+    
+   
     if 'underlyingPrice' in df.columns and not df['underlyingPrice'].isna().all():
         spot = df['underlyingPrice'].iloc[0]
     else:
-        spot = yf.Ticker(symbol).history(period="1d")['Close'].iloc[-1]
+        spot = yf.Ticker(symbol).history(period="1d")['Close'].iloc[-1] # fall back to yfinance for spot prices
 
     print(f"\nSpot Price: ${spot:.2f}")
     
